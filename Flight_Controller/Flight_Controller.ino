@@ -2,10 +2,19 @@
 #include "FastPID.h"
 #include <ReefwingAHRS.h>
 #include <MyBoschSensor.h>
+#include "ArduinoBLE.h"
+
+#define BLE_UUID_M5600_SERVICE                    "F000AB30-0451-4000-B000-000000000000"
+#define BLE_UUID_M5600_DATA                       "F000AB31-0451-4000-B000-000000000000"
 
 //function prototypes
 void InitialiseIMU();
 void InitialiseAHRS();
+void InitialiseBLE();
+
+//BLE variable declaration
+
+
 
 //IMU class obj configuration
 MyBoschSensor myIMU(Wire1);
@@ -102,6 +111,11 @@ void loop() {
   }
 
   loopFrequency++;
+}
+
+void InitialiseBLE()
+{
+
 }
 
 void InitialiseAHRS()
