@@ -5,7 +5,7 @@
 
 
 class MyBoschSensor: public BoschSensorClass {
-    
+
   public:
     MyBoschSensor(TwoWire& wire = Wire) : BoschSensorClass(wire) {};
 
