@@ -4,17 +4,13 @@
 #include <MyBoschSensor.h>
 #include "ArduinoBLE.h"
 
-#define BLE_UUID_M5600_SERVICE                    "F000AB30-0451-4000-B000-000000000000"
-#define BLE_UUID_M5600_DATA                       "F000AB31-0451-4000-B000-000000000000"
+#define BLE_UUID_AHRS_SERVICE                    "F000AB30-0451-4000-B000-000000000000"
+#define BLE_UUID_AHRS_DATA                       "F000AB31-0451-4000-B000-000000000000"
 
 //function prototypes
 void InitialiseIMU();
 void InitialiseAHRS();
-void InitialiseBLE();
-
-//BLE variable declaration
-
-
+bool InitialiseBLE();
 
 //IMU class obj configuration
 MyBoschSensor myIMU(Wire1);
@@ -24,6 +20,15 @@ ReefwingAHRS ahrs;
 SensorData data;
 //Servo obj -- used to controll ESC
 Servo ESC;
+
+//BLE variable declaration
+
+#define DRONE_DEFAULT_DEVICE_NAME   "DroneTest"
+
+EulerAngles_ut EulerAnglesData;
+
+BLEService ahrsService( BLE_UUID_AHRS_SERVICE );
+BLECharacteristic ahrsDataCharacteristic( BLE_UUID_AHRS_DATA, BLERead | BLENotify, sizeof EulerAnglesData.bytes );
 
 //PID variable declaration
 float Kp=1, Ki=0.5, Kd=0.25, Hz=50;
@@ -57,6 +62,13 @@ void setup() {
     ESC.attach(9,1000,2000); // (pin, min pulse width, max pulse width in microseconds)
 
     InitialiseIMU();
+
+    if ( InitialiseBLE() )
+    {
+        digitalWrite( LED_BUILTIN, HIGH );
+        delay(1000);
+        digitalWrite( LED_BUILTIN, LOW );
+    }
 }
 
 void loop() {
@@ -71,9 +83,9 @@ void loop() {
 
   if(periodOfPID >= 20){
     output = myPID.step(setPoint, ahrs.angles.roll);
-    Serial.print("\tLoop Frequency: ");
-    Serial.print(periodOfPID);
-    Serial.println(" ms");
+    // Serial.print("\tLoop Frequency: ");
+    // Serial.print(periodOfPID);
+    // Serial.println(" ms");
 
     loopFrequency = 0;
     previousMillisPID = millis();
@@ -86,9 +98,19 @@ void loop() {
     outputESC =  map(output, 0, 255, 0, 180); 
     outputESCTest = map(ahrs.angles.roll,-90,90,0,180);
     ESC.write(outputESC);
+    EulerAnglesData.values = ahrs.angles;
 
-    // Serial.print("Roll: ");
-    // Serial.print(ahrs.angles.roll, 2);
+    BLEDevice central = BLE.central();
+
+    if (central)
+    {
+        Serial.print( "Connected to central: " );
+        Serial.println( central.address() );
+        ahrsDataCharacteristic.writeValue( EulerAnglesData.bytes, sizeof EulerAnglesData.bytes );
+    }
+    
+    Serial.print("Roll= ");
+    Serial.println(EulerAnglesData.values.roll,HEX);
     // Serial.print(" SetPoint= ");
     // Serial.print(ahrs.angles.pitch);
     // Serial.print(" outputPID= ");
@@ -113,9 +135,26 @@ void loop() {
   loopFrequency++;
 }
 
-void InitialiseBLE()
+bool InitialiseBLE()
 {
+    if ( !BLE.begin() )
+    {
+        return false;
+    }
+    // set advertised local name and service UUID:
+    BLE.setDeviceName( DRONE_DEFAULT_DEVICE_NAME );
+    BLE.setLocalName( DRONE_DEFAULT_DEVICE_NAME );
+    BLE.setAdvertisedService( ahrsService );
 
+    // BLE add characteristics
+    ahrsService.addCharacteristic( ahrsDataCharacteristic );
+    BLE.addService( ahrsService );
+    ahrsDataCharacteristic.writeValue( EulerAnglesData.bytes, sizeof EulerAnglesData.bytes );
+
+      // start advertising
+    BLE.advertise();
+
+    return true;
 }
 
 void InitialiseAHRS()
