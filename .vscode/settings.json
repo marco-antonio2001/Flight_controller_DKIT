@@ -16,6 +16,20 @@
         "ratio": "cpp",
         "sstream": "cpp",
         "streambuf": "cpp",
-        "regex": "cpp"
+        "regex": "cpp",
+        "algorithm": "cpp",
+        "memory": "cpp",
+        "fstream": "cpp",
+        "iosfwd": "cpp",
+        "mstd_type_traits": "cpp",
+        "chrono": "cpp",
+        "unordered_map": "cpp",
+        "optional": "cpp",
+        "type_traits": "cpp",
+        "cmath": "cpp",
+        "system_error": "cpp",
+        "thread": "cpp",
+        "tuple": "cpp",
+        "utility": "cpp"
     }
 }
