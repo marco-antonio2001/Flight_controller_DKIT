@@ -6,7 +6,7 @@
 
 #define BLE_UUID_AHRS_SERVICE                    "F000AB30-0451-4000-B000-000000000000"
 #define BLE_UUID_AHRS_DATA                       "F000AB31-0451-4000-B000-000000000000"
-#define BLE_UUID_AHRS_DATA                       "F000AB32-0451-4000-B000-000000000000"
+#define BLE_UUID_AHRS_SETPOINT_DATA                       "F000AB32-0451-4000-B000-000000000000"
 #define EULER_ANGLES_SIZE 32
 #define DRONE_DEFAULT_DEVICE_NAME   "DroneTest"
 #define PID_HZ 25
@@ -42,7 +42,7 @@ EulerAngles_ut EulerAnglesSetPointData;
 //BLE variable declaration
 BLEService ahrsService( BLE_UUID_AHRS_SERVICE );
 BLECharacteristic ahrsDataCharacteristic( BLE_UUID_AHRS_DATA, BLERead | BLENotify, sizeof EulerAnglesData.bytes );
-BLECharacteristic ahrsSetPointDataCharacteristic( BLE_UUID_AHRS_DATA, BLERead | BLEWrite, sizeof EulerAnglesSetPointData.bytes );
+BLECharacteristic ahrsSetPointDataCharacteristic( BLE_UUID_AHRS_SETPOINT_DATA, BLERead | BLEWriteWithoutResponse, sizeof EulerAnglesSetPointData.bytes );
 #pragma endregion
 #pragma region variable Declarations
 //PID variable declaration
@@ -120,7 +120,7 @@ void loop() {
   loopPeriod = millis() - previousMillisPID;
 
   if(loopPeriod >= (1000/PID_HZ)){
-    output = myPID.step(setPoint, ahrs.angles.roll);
+    output = myPID.step(EulerAnglesSetPointData.values.roll, ahrs.angles.roll);
     outputLeftProp = constrain(throttle+output,1000,2000); 
     outputRightProp = constrain(throttle-output,1000,2000); 
     
@@ -149,7 +149,8 @@ void loop() {
     EulerAnglesData.values = ahrs.angles;
 
     BLEDevice central = BLE.central();
-  
+
+    //Serial.println(EulerAnglesSetPointData.values.roll);
 
     if (central)
     {
