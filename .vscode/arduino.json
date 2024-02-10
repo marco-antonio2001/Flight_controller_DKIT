@@ -1,5 +1,6 @@
 {
     "sketch": "Flight_Controller\\Flight_Controller.ino",
     "board": "arduino:mbed_nano:nano33ble",
+    "output": "../ArduinoOutput",
     "port": "COM9"
 }
