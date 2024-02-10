@@ -30,11 +30,6 @@ MyBoschSensor myIMU(Wire1);
 ReefwingAHRS ahrs;
 //sensor data obj
 SensorData data;
-//Servo obj -- used to controll ESC
-Servo leftProp;
-Servo rigthProp;
-//PID obj Initialise
-FastPID rollPID;
 EulerAngles_ut EulerAnglesData;
 EulerAngles_ut EulerAnglesSetPointData;
 
@@ -45,27 +40,14 @@ BLECharacteristic ahrsDataCharacteristic( BLE_UUID_AHRS_DATA, BLERead | BLENotif
 BLECharacteristic ahrsSetPointDataCharacteristic( BLE_UUID_AHRS_SETPOINT_DATA, BLERead | BLEWriteWithoutResponse, sizeof EulerAnglesSetPointData.bytes );
 #pragma endregion
 #pragma region variable Declarations
-//PID variable declaration
-float Kp=10, Ki=0.09, Kd=0.025;
-int output_bits = 16;
-bool output_signed = true;
-int output;
-double setPoint = 1;
-
-int outputLeftProp;
-int outputRightProp;
-int outputleftPropTest;
-double throttle=1300;//init val of prop 
 
 //  Display and Loop Frequency
 int loopFrequency = 0;
 const long displayPeriod = 5000;
 unsigned long previousMillis = 0;
-unsigned long previousMillisPID = 0;
 unsigned long loopPeriod = 0;
 
 uint8_t value[32];
-void* ptr;
 #pragma endregion
 
 void setup() {
@@ -73,24 +55,8 @@ void setup() {
     Serial.begin(115200);
     while (!Serial);
 
-    InitialiseAHRS();
-
-    rollPID.configure(Kp, Ki, Kd, PID_HZ, output_bits, output_signed);
-    rollPID.setOutputRange(-1000,1000);
-    
-
-    //set up the servo/leftProp
-    //send the min signal to Initialise leftProp before connecting battery
-    leftProp.attach(9,1000,2000); // (pin, min pulse width, max pulse width in microseconds)
-    rigthProp.attach(8,1000,2000); // (pin, min pulse width, max pulse width in microseconds)
-    leftProp.writeMicroseconds(1000);
-    rigthProp.writeMicroseconds(1000);
-    delay(1000);
-    Serial.println("delay started Turn on power supply");
-    delay(10000);
-    Serial.println("delay done");
+    InitialiseAHRS();  
     InitialiseIMU();
-
     if ( InitialiseBLE() )
     {
         digitalWrite( LED_BUILTIN, HIGH );
@@ -119,47 +85,22 @@ void loop() {
   ahrs.setData(data);
   ahrs.update();
 
-  loopPeriod = millis() - previousMillisPID;
-
-  if(loopPeriod >= (1000/PID_HZ)){
-    output = rollPID.step(EulerAnglesSetPointData.values.roll, ahrs.angles.roll);
-    outputLeftProp = constrain(throttle+output,1000,2000); 
-    outputRightProp = constrain(throttle-output,1000,2000); 
-
-    leftProp.writeMicroseconds(outputLeftProp);
-    rigthProp.writeMicroseconds(outputRightProp);
-    
-    Serial.print("Roll: ");
-    Serial.print(ahrs.angles.roll);
-    // Serial.print("\tOutput: ");
-    // Serial.print(output);
-    Serial.print("\tRoll Set point");
-    Serial.print(EulerAnglesSetPointData.values.roll);
-    Serial.print("\toutputRightProp= ");
-    Serial.print(outputRightProp);
-    Serial.print("\toutputleftProp= ");
-    Serial.println(outputLeftProp);
-    // Serial.print("\tMapped= ");
-    // Serial.println(constrain(output,1000,2000));
-    loopFrequency = 0;
-    previousMillisPID = millis();
-
-  }
-
   //TODO: decide on a AHRS loop Frequency and also for BLE
   if (millis() - previousMillis >= 1) {
   
     BLE.poll();
-    EulerAnglesData.values = ahrs.angles;
+    //EulerAnglesData.values = ahrs.angles;
+
+    Serial.print("Roll: ");
+    Serial.print(ahrs.angles.roll);
+    Serial.print("\tPitch: ");
+    Serial.println(ahrs.angles.pitch);
+    
 
     BLEDevice central = BLE.central();
 
-    //Serial.println(EulerAnglesSetPointData.values.roll);
-
     if (central)
     {
-        // Serial.print( "Connected to central: " );
-        // Serial.println( central.address() );
         ahrsDataCharacteristic.writeValue( EulerAnglesData.bytes, sizeof EulerAnglesData.bytes );
     }
 

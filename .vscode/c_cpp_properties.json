@@ -10,18 +10,18 @@
             ],
             "intelliSenseMode": "gcc-x64",
             "includePath": [
-                "C:\\Users\\marco\\AppData\\Local\\Arduino15\\packages\\arduino\\hardware\\mbed_nano\\4.0.10\\cores\\arduino",
-                "C:\\Users\\marco\\AppData\\Local\\Arduino15\\packages\\arduino\\hardware\\mbed_nano\\4.0.10\\variants\\ARDUINO_NANO33BLE",
+                "C:\\Users\\marco\\AppData\\Local\\Arduino15\\packages\\arduino\\hardware\\mbed_nano\\4.1.1\\cores\\arduino",
+                "C:\\Users\\marco\\AppData\\Local\\Arduino15\\packages\\arduino\\hardware\\mbed_nano\\4.1.1\\variants\\ARDUINO_NANO33BLE",
                 "C:\\Users\\marco\\Documents\\Arduino\\libraries\\Servo\\src",
                 "C:\\Users\\marco\\Documents\\Arduino\\libraries\\FastPID\\src",
                 "C:\\Users\\marco\\Documents\\Arduino\\libraries\\ReefwingAHRS\\src",
                 "C:\\Users\\marco\\Documents\\Arduino\\libraries\\Reefwing_imuTypes\\src",
                 "C:\\Users\\marco\\Documents\\Arduino\\libraries\\custom_lib",
                 "C:\\Users\\marco\\Documents\\Arduino\\libraries\\Arduino_BMI270_BMM150\\src",
-                "C:\\Users\\marco\\AppData\\Local\\Arduino15\\packages\\arduino\\hardware\\mbed_nano\\4.0.10\\libraries\\Wire",
+                "C:\\Users\\marco\\AppData\\Local\\Arduino15\\packages\\arduino\\hardware\\mbed_nano\\4.1.1\\libraries\\Wire",
                 "C:\\Users\\marco\\Documents\\Arduino\\libraries\\ArduinoBLE\\src",
-                "C:\\Users\\marco\\AppData\\Local\\Arduino15\\packages\\arduino\\hardware\\mbed_nano\\4.0.10\\cores\\arduino\\api\\deprecated",
-                "C:\\Users\\marco\\AppData\\Local\\Arduino15\\packages\\arduino\\hardware\\mbed_nano\\4.0.10\\cores\\arduino\\api\\deprecated-avr-comp",
+                "C:\\Users\\marco\\AppData\\Local\\Arduino15\\packages\\arduino\\hardware\\mbed_nano\\4.1.1\\cores\\arduino\\api\\deprecated",
+                "C:\\Users\\marco\\AppData\\Local\\Arduino15\\packages\\arduino\\hardware\\mbed_nano\\4.1.1\\cores\\arduino\\api\\deprecated-avr-comp",
                 "c:\\users\\marco\\appdata\\local\\arduino15\\packages\\arduino\\tools\\arm-none-eabi-gcc\\7-2017q4\\arm-none-eabi\\include\\c++\\7.2.1",
                 "c:\\users\\marco\\appdata\\local\\arduino15\\packages\\arduino\\tools\\arm-none-eabi-gcc\\7-2017q4\\arm-none-eabi\\include\\c++\\7.2.1\\arm-none-eabi",
                 "c:\\users\\marco\\appdata\\local\\arduino15\\packages\\arduino\\tools\\arm-none-eabi-gcc\\7-2017q4\\arm-none-eabi\\include\\c++\\7.2.1\\backward",
@@ -30,7 +30,7 @@
                 "c:\\users\\marco\\appdata\\local\\arduino15\\packages\\arduino\\tools\\arm-none-eabi-gcc\\7-2017q4\\arm-none-eabi\\include"
             ],
             "forcedInclude": [
-                "C:\\Users\\marco\\AppData\\Local\\Arduino15\\packages\\arduino\\hardware\\mbed_nano\\4.0.10\\cores\\arduino\\Arduino.h"
+                "C:\\Users\\marco\\AppData\\Local\\Arduino15\\packages\\arduino\\hardware\\mbed_nano\\4.1.1\\cores\\arduino\\Arduino.h"
             ],
             "cStandard": "c11",
             "cppStandard": "c++11",
