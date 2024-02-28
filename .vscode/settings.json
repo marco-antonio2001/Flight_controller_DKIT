@@ -30,6 +30,8 @@
         "system_error": "cpp",
         "thread": "cpp",
         "tuple": "cpp",
-        "utility": "cpp"
+        "utility": "cpp",
+        "mstd_new": "cpp",
+        "mstd_tuple": "cpp"
     }
 }

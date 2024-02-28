@@ -6,15 +6,17 @@
 #include <DroneCustomDataTypes.h>
 #include "Common.h"
 
-#define BLE_UUID_AHRS_SERVICE                    "F000AB30-0451-4000-B000-000000000000"
-#define BLE_UUID_AHRS_DATA                       "F000AB31-0451-4000-B000-000000000000"
-#define BLE_UUID_AHRS_SETPOINT_DATA              "F000AB32-0451-4000-B000-000000000000"
-#define BLE_UUID_DRONE_CONTROL_CONFIG_DATA       "F000AB33-0451-4000-B000-000000000000"
+
+#define BLE_SENSE_UUID(val) ("F000" val "-0451-4000-B000-000000000000")
 #define EULER_ANGLES_SIZE 32
 #define ATTITUDE_SET_POINT_SIZE 12
 #define DRONE_CONTROL_CONFIG_SIZE 16
 #define DRONE_DEFAULT_DEVICE_NAME   "DroneTest"
 #define PID_HZ 25
+#define PITCH_CRIT_ANGLE_POS 20.0
+#define PITCH_CRIT_ANGLE_NEG -20.0
+#define SAMPLESIZE 1000
+
 
 typedef union
 {
@@ -51,17 +53,17 @@ SensorData data;
 Servo leftProp;
 Servo rigthProp;
 //PID obj Initialise
-FastPID rollPID;
+FastPID pitchPID;
 EulerAngles_ut EulerAnglesData;
 AttitudeSetPointData_ut AttitudeSetPointData;
 DroneControllConfig_ut DronePIDData;
 
 
 //BLE variable declaration
-BLEService ahrsService( BLE_UUID_AHRS_SERVICE );
-BLECharacteristic ahrsDataCharacteristic( BLE_UUID_AHRS_DATA, BLERead | BLENotify, sizeof EulerAnglesData.bytes );
-BLECharacteristic ahrsSetPointDataCharacteristic( BLE_UUID_AHRS_SETPOINT_DATA, BLERead | BLEWriteWithoutResponse, sizeof AttitudeSetPointData.bytes );
-BLECharacteristic droneControlConfigCharacteristic( BLE_UUID_DRONE_CONTROL_CONFIG_DATA, BLERead | BLEWriteWithoutResponse, sizeof DronePIDData.bytes );
+BLEService ahrsService(BLE_SENSE_UUID("AB30"));
+BLECharacteristic ahrsDataCharacteristic( BLE_SENSE_UUID("AB31"), BLERead | BLENotify, sizeof EulerAnglesData.bytes );
+BLECharacteristic ahrsSetPointDataCharacteristic( BLE_SENSE_UUID("AB32"), BLERead | BLEWriteWithoutResponse, sizeof AttitudeSetPointData.bytes );
+BLECharacteristic droneControlConfigCharacteristic( BLE_SENSE_UUID("AB33"), BLERead | BLEWriteWithoutResponse, sizeof DronePIDData.bytes );
 #pragma endregion
 #pragma region variable Declarations
 
@@ -75,6 +77,7 @@ int outputLeftProp;
 int outputRightProp;
 int outputleftPropTest;
 double throttle=1300;//init val of prop 
+bool pitchCriticalAngleFlag = false; // true when pitch angle 
 
 //  Display and Loop Frequency
 int loopFrequency = 0;
@@ -84,6 +87,26 @@ unsigned long previousMillisPID = 0;
 unsigned long loopPeriod = 0;
 unsigned long filterLoopPeriod = 0;
 
+//accelerometer cal value
+float cal_ax,cal_ay,cal_az;
+
+//Gyro cal value 
+float cal_gx,cal_gy,cal_gz;
+
+
+
+//Magnetometer HardIron calibration
+float magData[3];  
+float gyroData[3];
+float accData[3];
+float hardIron[3] = {-20.17, -9.72, 21.14};
+float softIron[3][3] = 
+{
+  {1.039, -0.0038, 0.008},
+  {-0.0038, 0.984, -0.01},
+  {0.008, -0.01, 1.030}
+};
+
 uint8_t value[32];
 void* ptr;
 #pragma endregion
@@ -91,63 +114,54 @@ void* ptr;
 void setup() {
     //  Start Serial and wait for connection
     Serial.begin(115200);
-    while (!Serial);
+    //while (!Serial);
 
     InitialiseAHRS();
     //start pid with default values
-    rollPID.configure(10,0.1,0.01, PID_HZ, output_bits, output_signed);
-    rollPID.setOutputRange(-1000,1000);
+    pitchPID.configure(10,0.1,0.01, PID_HZ, output_bits, output_signed);
+    pitchPID.setOutputRange(-1000,1000);
     
 
     //set up the servo/leftProp
     //send the min signal to Initialise leftProp before connecting battery
-    leftProp.attach(9,1000,2000); // (pin, min pulse width, max pulse width in microseconds)
-    rigthProp.attach(8,1000,2000); // (pin, min pulse width, max pulse width in microseconds)
+    leftProp.attach(9,1000,2200); // (pin, min pulse width, max pulse width in microseconds)
+    rigthProp.attach(8,1000,2200); // (pin, min pulse width, max pulse width in microseconds)
     leftProp.writeMicroseconds(1000);
     rigthProp.writeMicroseconds(1000);
-    delay(1000);
-    Serial.println("delay started Turn on power supply");
-    //delay(10000);
-    Serial.println("delay done");
+    delay(7000);
+    Serial.println("esc stared");
     InitialiseIMU();
-
-    if ( InitialiseBLE() )
-    {
-        digitalWrite( LED_BUILTIN, HIGH );
-        delay(1000);
-        digitalWrite( LED_BUILTIN, LOW );
-    }else
-    {
-        digitalWrite( LED_BUILTIN, HIGH );
-        delay(1000);
-        digitalWrite( LED_BUILTIN, LOW );
-        delay(1000);
-        digitalWrite( LED_BUILTIN, HIGH );
-        delay(1000);
-        digitalWrite( LED_BUILTIN, LOW );
-        delay(1000);
-        digitalWrite( LED_BUILTIN, HIGH );
-    }
+    InitialiseBLE();
 }
 
 void loop() {
-  if (myIMU.gyroscopeAvailable()) {  myIMU.readGyroscope(data.gx, data.gy, data.gz);  }
-  if (myIMU.accelerationAvailable()) {  myIMU.readAcceleration(data.ax, data.ay, data.az);  }
-  if (myIMU.magneticFieldAvailable()) {  myIMU.readMagneticField(data.mx, data.my, data.mz);  }
-
-  // //update predictive filter
+  if (myIMU.gyroscopeAvailable()) {  myIMU.readGyroscope(data.gx, data.gy, data.gz);  data.gx -= cal_gx; data.gy -= cal_gy; data.gz -= cal_gz;}
+  if (myIMU.accelerationAvailable()) {  myIMU.readAcceleration(data.ax, data.ay, data.az);data.ax -= cal_ax; data.ay -= cal_ay; data.az -= cal_az;}
+  if (myIMU.magneticFieldAvailable()) {  myIMU.readMagneticField(magData[0], magData[1], magData[2]); calibrateMagRawData(); }
+  
   ahrs.setData(data,true);
   ahrs.update();
-
   loopPeriod = millis() - previousMillisPID;
 
   if(loopPeriod >= (1000/PID_HZ)){
-    output = rollPID.step(AttitudeSetPointData.values.roll, ahrs.angles.roll);
-    outputLeftProp = constrain(throttle+output,1000,2000); 
-    outputRightProp = constrain(throttle-output,1000,2000); 
+      // //update predictive filter
 
-    leftProp.writeMicroseconds(outputLeftProp);
-    rigthProp.writeMicroseconds(outputRightProp);
+    output = pitchPID.step(AttitudeSetPointData.values.pitch, ahrs.angles.pitch);
+    outputLeftProp = constrain(throttle+output,1100,2200); 
+
+    outputRightProp = constrain(throttle-output,1100,2200); 
+
+    if (!pitchCriticalAngleFlag)
+    { 
+      //write to motor when pitchCriticalAngleFlag flag is false
+      leftProp.writeMicroseconds(outputLeftProp);
+      rigthProp.writeMicroseconds(outputRightProp);
+    }else
+    {
+      //turn ESC motor off when pitchCriticalAngleFlag is true
+      leftProp.writeMicroseconds(1000);
+      rigthProp.writeMicroseconds(1000);
+    }
 
     //PrintDroneDataToSerial();
     previousMillisPID = millis();
@@ -156,13 +170,19 @@ void loop() {
   BLE.poll();
   EulerAnglesData.values = ahrs.angles;
 
-  BLEDevice central = BLE.central();
+  //write to ble
+  ahrsDataCharacteristic.writeValue( EulerAnglesData.bytes, sizeof EulerAnglesData.bytes );
 
 
-  if (central)
+  if (ahrs.angles.pitch > PITCH_CRIT_ANGLE_POS || ahrs.angles.pitch < PITCH_CRIT_ANGLE_NEG)
   {
-      ahrsDataCharacteristic.writeValue( EulerAnglesData.bytes, sizeof EulerAnglesData.bytes );
+    //safe gaurd when angle is too big switch motor off
+    pitchCriticalAngleFlag = true;
+  }else
+  {
+    pitchCriticalAngleFlag = false;
   }
+  
 
   loopFrequency++;
 }
@@ -199,12 +219,48 @@ void InitialiseAHRS()
 {
   //  Use default fusion algo and parameters
   ahrs.begin();
-    
-  ahrs.setFusionAlgorithm(SensorFusion::MAHONY);
+  ahrs.setImuType(ImuType::BMI270_BMM150);
+  
+  ahrs.setDOF(DOF::DOF_9);
+
+  ahrs.setFusionAlgorithm(SensorFusion::KALMAN);
   ahrs.setDeclination(-1.79);                      //  dundalk declination
   ahrs.setBeta(0.8);                               // set beta value **tweek**
   ahrs.setKp(10);
-  ahrs.setKi(0);
+  ahrs.setKi(0.0);
+
+  ahrs.kalmanX.setQangle(2.25);//acc output noise ^2
+  ahrs.kalmanX.setQbias(0.0049);//gyro output noise ^2
+
+  ahrs.kalmanY.setQangle(2.25);//acc output noise^2
+  ahrs.kalmanY.setQbias(0.0049);//gyro output noise ^2
+
+}
+
+void calibrateMagRawData()
+{
+  //do hard iron and soft iron correction
+  float hiCal[3];
+  for (uint8_t i = 0; i<3;i++)
+  {
+    hiCal[i] = magData[i]-hardIron[i];
+  }
+  
+  //soft iron correction
+  for (uint8_t i = 0; i<3;i++)
+  {
+    magData[i] =  (softIron[i][0]*hiCal[0])+
+                  (softIron[i][1]*hiCal[1])+
+                  (softIron[i][2]*hiCal[2]);
+  }
+  // data.mx = magData[0]*cos(ahrs.angles.rollRadians)-(magData[1]*sin(ahrs.angles.pitchRadians)*sin(ahrs.angles.rollRadians))+(magData[2]*cos(ahrs.angles.pitchRadians)*sin(ahrs.angles.rollRadians));
+  // data.my = (magData[1]*cos(ahrs.angles.pitchRadians))+(magData[2]*sin(ahrs.angles.pitchRadians));
+
+  data.mx = magData[0]*cos(ahrs.angles.pitchRadians)-(magData[1]*sin(ahrs.angles.rollRadians)*sin(ahrs.angles.pitchRadians))+(magData[2]*cos(ahrs.angles.rollRadians)*sin(ahrs.angles.pitchRadians));
+  data.my = (magData[1]*cos(ahrs.angles.rollRadians))+(magData[2]*sin(ahrs.angles.rollRadians));
+  data.mx = magData[0];
+  data.my = magData[1];
+  data.mz = magData[2];
 }
 
 void InitialiseIMU(){
@@ -236,16 +292,51 @@ void InitialiseIMU(){
     while(1);
   }
 
+  digitalWrite( LED_BUILTIN, HIGH );
+  //sensor callibraton acc and gyro 
+  float accum_ax,accum_ay,accum_az;
+
+  for(int i = 0;i<SAMPLESIZE;i++ )
+  {
+      //take SAMPLESIZE readings and see what the accel zero off set error is 
+      if (myIMU.accelerationAvailable()) {
+      myIMU.readAcceleration(data.ax,data.ay,data.az);
+      accum_ax += data.ax;
+      accum_ay += data.ay;
+      accum_az += (data.az -2);
+    }
+  }
+  cal_ax = accum_ax/SAMPLESIZE;
+  cal_ay = accum_ay/SAMPLESIZE;
+  cal_az = accum_az/SAMPLESIZE;
+
+  float accum_gx,accum_gy,accum_gz;
+  for(int i = 0;i<SAMPLESIZE;i++ )
+  {
+      //take SAMPLESIZE readings and see what the accel zero off set error is 
+      if (myIMU.gyroscopeAvailable()) {
+      myIMU.readGyroscope(data.gx,data.gy,data.gz);
+      accum_gx += data.gx;
+      accum_gy += data.gy;
+      accum_gz += (data.gz);
+    }
+  }
+  digitalWrite( LED_BUILTIN, LOW );
 }
+
 
 void PrintDroneDataToSerial()
 {
-  Serial.print("Roll: ");
+  Serial.print("pitch: ");
+  Serial.print(ahrs.angles.pitch);
+  Serial.print("\tRoll: ");
   Serial.print(ahrs.angles.roll);
+  Serial.print("\theading: ");
+  Serial.print(ahrs.angles.heading);
   Serial.print("\tOutput: ");
   Serial.print(output);
-  Serial.print("\t\tRoll Set point");
-  Serial.print(AttitudeSetPointData.values.roll);
+  Serial.print("\t\tpitch Set point");
+  Serial.print(AttitudeSetPointData.values.pitch);
   Serial.print("\toutputRightProp= ");
   Serial.print(outputRightProp);
   Serial.print("\toutputleftProp= ");
@@ -265,10 +356,10 @@ void CallBackControlConfigWritten(BLEDevice central, BLECharacteristic character
   digitalWrite( LED_BUILTIN, HIGH );
   if (characteristic.value())
   {
-    Serial.print("Writing PID coefficient ERR? ");
+    Serial.print("Writing PID... Config ERR? ");
     characteristic.readValue(DronePIDData.bytes,sizeof(DronePIDData.bytes));
-    rollPID.configure(DronePIDData.values.MKp,DronePIDData.values.MKi,DronePIDData.values.MKd, PID_HZ, output_bits, output_signed);
-    Serial.println(rollPID.err());
+    pitchPID.configure(DronePIDData.values.MKp,DronePIDData.values.MKi,DronePIDData.values.MKd, PID_HZ, output_bits, output_signed);
+    Serial.println(pitchPID.err() != 0);
   }
   digitalWrite( LED_BUILTIN, LOW );
 }
