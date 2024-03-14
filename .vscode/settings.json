@@ -32,6 +32,7 @@
         "tuple": "cpp",
         "utility": "cpp",
         "mstd_new": "cpp",
-        "mstd_tuple": "cpp"
+        "mstd_tuple": "cpp",
+        "new": "cpp"
     }
 }
