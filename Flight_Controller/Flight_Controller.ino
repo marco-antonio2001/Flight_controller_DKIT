@@ -11,7 +11,7 @@
 #define EULER_ANGLES_SIZE 32
 #define ATTITUDE_SET_POINT_SIZE 12
 #define DRONE_CONTROL_CONFIG_SIZE 16
-#define DRONE_DEFAULT_DEVICE_NAME   "DroneTest"
+#define DRONE_DEFAULT_DEVICE_NAME   "BluePirateDrone"
 #define PID_HZ 33
 #define LOOP_PERIOD 30
 #define MAX_PITCH 20.0
@@ -104,22 +104,28 @@ uint8_t value[32];
 */
 void setup() {
     pinMode(LEDB, OUTPUT);
+    pinMode(LEDR, OUTPUT);
+
     digitalWrite( LEDB, LOW );
     Serial.begin(115200);
 
     InitialiseAHRS();
     pitchPID.configure(10,0.1,0.01, PID_HZ, output_bits, output_signed);
     pitchPID.setOutputRange(-1000,1000);
+
+    Serial.println("esc stared");
+    InitialiseIMU();
+    InitialiseBLE();
     
+    digitalWrite( LEDR, HIGH );
+    //delay(20000);
     leftProp.attach(9,1000,2200); // (pin, min pulse width, max pulse width in microseconds)
     rigthProp.attach(8,1000,2200); // (pin, min pulse width, max pulse width in microseconds)
     leftProp.writeMicroseconds(1000);
     rigthProp.writeMicroseconds(1000);
     delay(2000);
+    digitalWrite( LEDR, LOW);
 
-    Serial.println("esc stared");
-    InitialiseIMU();
-    InitialiseBLE();
 }
 
 /*Summary
@@ -166,7 +172,7 @@ void loop() {
   //wait for loop to take 30 ms
   while((millis()-startTime) < LOOP_PERIOD);
   lastTime = millis();
-  Serial.println(lastTime-startTime);
+  //Serial.println(lastTime-startTime);
 
 }
 
@@ -350,14 +356,16 @@ void CallBackSetPointWritten(BLEDevice central, BLECharacteristic characteristic
   digitalWrite( LED_BUILTIN, HIGH );
   if (characteristic.value())
   {
+    Serial.print("Writing Set point ");
     characteristic.readValue(AttitudeSetPointData.bytes,sizeof(AttitudeSetPointData.bytes));
+    Serial.println(AttitudeSetPointData.values.pitch);
   }
   digitalWrite( LED_BUILTIN, LOW );
 }
 
 /*Summary
   -Call back function for when PID characteristic is written to
-  -reads data[]* and maps to DronePIDData structure utilizing the union
+  -reads (uint8_t data[])* and maps to DronePIDData structure utilizing the union
   -calls PID configure function with new values (Important to flush out old values and set new PID constants)
 */
 void CallBackControlConfigWritten(BLEDevice central, BLECharacteristic characteristic){
