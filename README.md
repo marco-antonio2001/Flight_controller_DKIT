@@ -2,4 +2,4 @@ This project is one of two parts to my final year project in college as an elect
 
 This repo implements the drone's flight controller it is specifically written to work on the "Arduino nano 33 BLE sense Rev 2". The system was tested on a custom made test rig and performed well, some issues arrose with the fact that the motors and esc being used waas not from the same manufacture, with one motor being around 10% stronger that the other, i compensated this by decreasng the base throttle of the strogger motor by 10%. This code should not be put to control a real drone for many reasons!! the first being it is an incomplete flight controller, the performance should be dramastically increased with more safegaurds put in place. I acknowledge that this is not a perfect project i will continue to work on this but i hope it can help someone.
 
- 
+ link to Ground Control Station Repo "https://github.com/marco-antonio2001/BluePirateDrone"
