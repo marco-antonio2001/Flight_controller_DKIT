@@ -117,7 +117,7 @@ void setup() {
     Serial.begin(115200);
 
     InitialiseAHRS();
-    pitchPID.configure(3,0.7,1.0, PID_HZ, output_bits, output_signed);
+    pitchPID.configure(2.5,0.7,1.0, PID_HZ, output_bits, output_signed);
     //pitchPID.configure(2.75,0.25,1.25, PID_HZ, output_bits, output_signed);
 
     pitchPID.setOutputRange(-1000,1000);
@@ -162,7 +162,7 @@ void loop() {
   if(myIMU.magneticFieldAvailable()){myIMU.readMagneticField(magData[0], magData[1], magData[2]); calibrateMagRawData();}
   myIMU.readGyroscope(data.gx, data.gy, data.gz);  data.gx -= cal_gx; data.gy -= cal_gy; data.gz -= cal_gz;
   myIMU.readAcceleration(data.ax, data.ay, data.az);data.ax -= cal_ax; data.ay -= cal_ay; data.az -= cal_az;
-
+  
   ahrs.setData(data,true);
   ahrs.update();
 
@@ -176,7 +176,6 @@ void loop() {
   rigthProp.writeMicroseconds(outputRightProp * (escArmed));
 
   //PrintDroneDataToSerial();
-
   BLE.poll();
   ActualAttitudeData.values.roll = ahrs.angles.roll;
   ActualAttitudeData.values.pitch = ahrs.angles.pitch;
@@ -250,7 +249,8 @@ void InitialiseAHRS()
   // ahrs.kalmanY.setQangle(2.25);//acc output noise^2
   // ahrs.kalmanY.setQbias(0.0049);//gyro output noise ^2
 
-  ahrs.kalmanX.setQangle(2.3);//acc output noise ^2
+  //higer value to account for higher uncertainty intruduced by the motor noise
+  ahrs.kalmanX.setQangle(2.3);//acc output noise ^2 
   ahrs.kalmanX.setQbias(0.0055);//gyro output noise ^2
 
   ahrs.kalmanY.setQangle(2.3);//acc output noise^2
